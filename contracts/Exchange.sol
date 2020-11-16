@@ -35,7 +35,7 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         return _orders;
     }
 
-    function buy(uint256 id) public payable {
+    function buy(uint256 id) external {
         require(id < _totalOrder);
         Order memory order = _orders[id];
         IERC20 _token = IERC20(token);
@@ -48,7 +48,7 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         // TODO: Orders array modification
     }
 
-    function revoke(uint256 id) public {
+    function revoke(uint256 id) external {
         require(id < _totalOrder);
         Order memory order = _orders[id];
         require(order.owner == msg.sender);
