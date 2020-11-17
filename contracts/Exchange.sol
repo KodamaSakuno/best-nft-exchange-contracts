@@ -31,8 +31,16 @@ contract BestNftExchange is Administrable, IERC721Receiver {
     function totalOrder() external view returns (uint256) {
         return _totalOrder;
     }
-    function getOrders() external view returns (Order[] memory) {
-        return _orders;
+    function getOrders() external view returns (Order[] memory result) {
+        result = new Order[](_totalOrder);
+
+        for (uint256 i = 0; i < _totalOrder; i++) {
+            result[i] = _orders[i];
+        }
+    }
+    function getOrder(uint256 id) external view returns (Order memory) {
+        require(id < _totalOrder);
+        return _orders[id];
     }
 
     function buy(uint256 id) external {
@@ -40,12 +48,12 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         Order memory order = _orders[id];
         IERC20 _token = IERC20(token);
         uint256 buyerBalance = _token.balanceOf(msg.sender);
-        require(buyerBalance >= order.price);
+        require(buyerBalance >= order.price, "BestNftExchange: insufficient balance");
 
         _token.safeTransferFrom(msg.sender, order.owner, order.price);
         IERC721(order.nft).safeTransferFrom(address(this), msg.sender, order.id);
 
-        // TODO: Orders array modification
+        removeOrder(id);
     }
 
     function revoke(uint256 id) external {
@@ -55,7 +63,22 @@ contract BestNftExchange is Administrable, IERC721Receiver {
 
         IERC721(order.nft).safeTransferFrom(address(this), msg.sender, order.id);
 
-        // TODO: Orders array modification
+        removeOrder(id);
+    }
+
+    function removeOrder(uint256 id) internal {
+        if (_totalOrder == 1) {
+            _orders.pop();
+            return;
+        }
+
+        Order memory lastOrder = _orders[_totalOrder - 1];
+        _orders.pop();
+
+        if (id < _totalOrder - 1)
+            _orders[id] = Order(lastOrder.nft, lastOrder.id, lastOrder.owner, lastOrder.price);
+
+        _totalOrder = _orders.length;
     }
 
     function set_price(uint256 id, uint256 price) external {
@@ -66,10 +89,12 @@ contract BestNftExchange is Administrable, IERC721Receiver {
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external override returns (bytes4) {
-        Order memory order = Order(operator, tokenId, from, 0);
+        Order memory order = Order(msg.sender, tokenId, from, 0);
 
         // TODO: Price is from data parameter
         // TODO: Orders array modification
+        _orders.push(order);
+        _totalOrder = _orders.length;
 
         return IERC721Receiver.onERC721Received.selector;
     }
