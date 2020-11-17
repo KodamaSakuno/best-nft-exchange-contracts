@@ -92,10 +92,9 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         uint256 price;
         if (data.length == 0)
             price = 0;
-        else {
-            require(data.length != 64, "BestNftExchange: data should be an encoded uint256 value");
+        else
             price = abi.decode(data, (uint256));
-        }
+
         Order memory order = Order(msg.sender, tokenId, from, price);
 
         _orders.push(order);

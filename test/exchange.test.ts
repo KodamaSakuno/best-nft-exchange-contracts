@@ -70,7 +70,7 @@ describe("BestNftExchange", () => {
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 2);
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 3);
 
-        const price = utils.defaultAbiCoder.encode([utils.ParamType.fromString("uint256")], ["9000000000000000000"]);
+        const price = utils.defaultAbiCoder.encode(["uint256"], ["9000000000000000000"]);
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256,bytes)"](wallet.address, exchange.address, 4, price);
 
         await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(4));
