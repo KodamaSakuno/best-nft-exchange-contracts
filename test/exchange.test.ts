@@ -57,7 +57,7 @@ describe("BestNftExchange", () => {
 
         await exchange.connect(wallet).withdrawAll();
 
-        expect(await token.balanceOf(wallet.address)).toEqual(fee);
+        await expect(token.balanceOf(wallet.address)).resolves.toEqual(fee);
     });
 
     test("Add order by direct transfer", async () => {
@@ -142,8 +142,8 @@ describe("BestNftExchange", () => {
         await expect(nft.ownerOf(2)).resolves.toBe(wallet.address);
     });
 
-    test("Failed to trade because of insufficient balance", async () => {
-        await expect(exchange.connect(trader2).buy(2)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: insufficient balance");
+    test("Failed to trade because of insufficient balance", () => {
+        expect(exchange.connect(trader2).buy(2)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: insufficient balance");
     });
 
     test("Successful trade", async () => {
