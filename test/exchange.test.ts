@@ -144,7 +144,9 @@ describe("BestNftExchange", () => {
 
     test("Failed to trade because of insufficient balance", async () => {
         await expect(exchange.connect(trader2).buy(2)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: insufficient balance");
+    });
 
+    test("Successful trade", async () => {
         const balance = utils.parseEther("7");
         await token.mint(trader1.address, balance);
         await token.connect(trader1).approve(exchange.address, balance);
