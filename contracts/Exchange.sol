@@ -39,12 +39,12 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         }
     }
     function getOrder(uint256 id) external view returns (Order memory) {
-        require(id < _totalOrder);
+        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         return _orders[id];
     }
 
     function buy(uint256 id) external {
-        require(id < _totalOrder);
+        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
         IERC20 _token = IERC20(token);
         uint256 buyerBalance = _token.balanceOf(msg.sender);
@@ -57,9 +57,9 @@ contract BestNftExchange is Administrable, IERC721Receiver {
     }
 
     function revoke(uint256 id) external {
-        require(id < _totalOrder);
+        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
-        require(order.owner == msg.sender);
+        require(order.owner == msg.sender, "BestNftExchange: not order owner");
 
         IERC721(order.nft).safeTransferFrom(address(this), msg.sender, order.id);
 
@@ -82,8 +82,8 @@ contract BestNftExchange is Administrable, IERC721Receiver {
     }
 
     function set_price(uint256 id, uint256 price) external {
-        require(id < _totalOrder);
-        require(_orders[id].owner == msg.sender);
+        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
+        require(_orders[id].owner == msg.sender, "BestNftExchange: not order owner");
 
         _orders[id].price = price;
     }
