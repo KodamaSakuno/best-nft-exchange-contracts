@@ -89,10 +89,15 @@ contract BestNftExchange is Administrable, IERC721Receiver {
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external override returns (bytes4) {
-        Order memory order = Order(msg.sender, tokenId, from, 0);
+        uint256 price;
+        if (data.length == 0)
+            price = 0;
+        else {
+            require(data.length != 64, "BestNftExchange: data should be an encoded uint256 value");
+            price = abi.decode(data, (uint256));
+        }
+        Order memory order = Order(msg.sender, tokenId, from, price);
 
-        // TODO: Price is from data parameter
-        // TODO: Orders array modification
         _orders.push(order);
         _totalOrder = _orders.length;
 

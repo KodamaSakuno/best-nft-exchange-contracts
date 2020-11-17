@@ -69,7 +69,9 @@ describe("BestNftExchange", () => {
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 1);
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 2);
         await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 3);
-        await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 4);
+
+        const price = utils.defaultAbiCoder.encode([utils.ParamType.fromString("uint256")], ["9000000000000000000"]);
+        await nft.connect(wallet)["safeTransferFrom(address,address,uint256,bytes)"](wallet.address, exchange.address, 4, price);
 
         await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(4));
 
@@ -96,7 +98,7 @@ describe("BestNftExchange", () => {
                 nft: nft.address,
                 id: BigNumber.from(4),
                 owner: wallet.address,
-                price: BigNumber.from(0),
+                price: utils.parseEther("9"),
             },
         ]);
     });
@@ -127,7 +129,7 @@ describe("BestNftExchange", () => {
                 nft: nft.address,
                 id: BigNumber.from(4),
                 owner: wallet.address,
-                price: BigNumber.from(0),
+                price: utils.parseEther("9"),
             },
             {
                 nft: nft.address,
@@ -161,7 +163,7 @@ describe("BestNftExchange", () => {
                 nft: nft.address,
                 id: BigNumber.from(4),
                 owner: wallet.address,
-                price: BigNumber.from(0),
+                price: utils.parseEther("9"),
             },
         ]);
 
