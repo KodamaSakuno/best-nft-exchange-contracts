@@ -88,7 +88,7 @@ contract BestNftExchange is Administrable, IERC721Receiver {
         _orders[id].price = price;
     }
 
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external override returns (bytes4) {
+    function onERC721Received(address, address from, uint256 tokenId, bytes calldata data) external override returns (bytes4) {
         uint256 price;
         if (data.length == 0)
             price = 0;
