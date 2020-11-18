@@ -5,7 +5,7 @@ import { utils, BigNumber } from "ethers";
 import {
     ERC20Mock, ERC20Mock__factory,
     BestNftExchange, BestNftExchange__factory,
-    ERC721Mock, ERC721Mock__factory,
+    ERC1155Mock, ERC1155Mock__factory,
 } from "../typechain";
 
 describe("BestNftExchange", () => {
@@ -16,17 +16,17 @@ describe("BestNftExchange", () => {
 
     let token: ERC20Mock;
     let exchange: BestNftExchange;
-    let nft: ERC721Mock;
+    let nft: ERC1155Mock;
 
     async function getOrders() {
         let orders: any = await exchange.getOrders();
 
-        return orders.map(({ nft, id, owner, price }) => ({ nft, id, owner, price }));
+        return orders.map(({ nft, id, amount, owner, price }) => ({ nft, id, amount, owner, price }));
     }
     async function getOrder(orderId: number) {
-        const { nft, id, owner, price } = <any>await exchange.getOrder(orderId);
+        const { nft, id, amount, owner, price } = <any>await exchange.getOrder(orderId);
 
-        return { nft, id, owner, price };
+        return { nft, id, amount, owner, price };
     }
 
     beforeAll(async () => {
@@ -34,7 +34,7 @@ describe("BestNftExchange", () => {
 
         token = await new ERC20Mock__factory(owner).deploy("Best Token", "BEST");
         exchange = await new BestNftExchange__factory(owner).deploy(token.address);
-        nft = await new ERC721Mock__factory(owner).deploy("Best NFT", "BNFT");
+        nft = await new ERC1155Mock__factory(owner).deploy("http://best/{id}.json");
     });
 
     test("Initialized successfully", () => {
@@ -60,18 +60,19 @@ describe("BestNftExchange", () => {
         await expect(token.balanceOf(wallet.address)).resolves.toEqual(fee);
     });
 
-    test("Add order by direct transfer", async () => {
-        await nft.mint(wallet.address, 1);
-        await nft.mint(wallet.address, 2);
-        await nft.mint(wallet.address, 3);
-        await nft.mint(wallet.address, 4);
+    test("Add single order by direct transfer", async () => {
+        await nft.mint(wallet.address, 1, 1, "0x");
+        await nft.mint(wallet.address, 2, 2, "0x");
+        await nft.mint(wallet.address, 3, 3, "0x");
+        await nft.mint(wallet.address, 4, 4, "0x");
 
-        await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 1);
-        await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 2);
-        await nft.connect(wallet)["safeTransferFrom(address,address,uint256)"](wallet.address, exchange.address, 3);
+
+        await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 1, 1, "0x");
+        await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 2, 2, "0x");
+        await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 3, 3, "0x");
 
         const price = utils.defaultAbiCoder.encode(["uint256"], ["9000000000000000000"]);
-        await nft.connect(wallet)["safeTransferFrom(address,address,uint256,bytes)"](wallet.address, exchange.address, 4, price);
+        await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 4, 4, price);
 
         await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(4));
 
@@ -79,24 +80,28 @@ describe("BestNftExchange", () => {
             {
                 nft: nft.address,
                 id: BigNumber.from(1),
+                amount: BigNumber.from(1),
                 owner: wallet.address,
                 price: BigNumber.from(0),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(2),
+                amount: BigNumber.from(2),
                 owner: wallet.address,
                 price: BigNumber.from(0),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(3),
+                amount: BigNumber.from(3),
                 owner: wallet.address,
                 price: BigNumber.from(0),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(4),
+                amount: BigNumber.from(4),
                 owner: wallet.address,
                 price: utils.parseEther("9"),
             },
@@ -109,6 +114,7 @@ describe("BestNftExchange", () => {
         await expect(getOrder(2)).resolves.toEqual({
             nft: nft.address,
             id: BigNumber.from(3),
+            amount: BigNumber.from(3),
             owner: wallet.address,
             price: utils.parseEther("7"),
         });
@@ -122,24 +128,83 @@ describe("BestNftExchange", () => {
             {
                 nft: nft.address,
                 id: BigNumber.from(1),
+                amount: BigNumber.from(1),
                 owner: wallet.address,
                 price: BigNumber.from(0),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(4),
+                amount: BigNumber.from(4),
                 owner: wallet.address,
                 price: utils.parseEther("9"),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(3),
+                amount: BigNumber.from(3),
                 owner: wallet.address,
                 price: utils.parseEther("7"),
             },
         ]);
 
-        await expect(nft.ownerOf(2)).resolves.toBe(wallet.address);
+        await expect(nft.balanceOf(wallet.address, 2)).resolves.toEqual(BigNumber.from(2));
+    });
+
+    test("Add multiple orders by direct transfer", async () => {
+        await nft.mint(wallet.address, 5, 5, "0x");
+        await nft.mint(wallet.address, 6, 6, "0x");
+        await nft.mint(wallet.address, 7, 7, "0x");
+
+        const prices = utils.defaultAbiCoder.encode(["uint256[]"], [["1000000000000000000", "2000000000000000000", "3000000000000000000"]]);
+        await nft.connect(wallet).safeBatchTransferFrom(wallet.address, exchange.address, [5, 6, 7], [5, 6, 7], prices);
+
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(6));
+
+        await expect(getOrders()).resolves.toEqual([
+            {
+                nft: nft.address,
+                id: BigNumber.from(1),
+                amount: BigNumber.from(1),
+                owner: wallet.address,
+                price: BigNumber.from(0),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(4),
+                amount: BigNumber.from(4),
+                owner: wallet.address,
+                price: utils.parseEther("9"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(3),
+                amount: BigNumber.from(3),
+                owner: wallet.address,
+                price: utils.parseEther("7"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(5),
+                amount: BigNumber.from(5),
+                owner: wallet.address,
+                price: utils.parseEther("1"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(6),
+                amount: BigNumber.from(6),
+                owner: wallet.address,
+                price: utils.parseEther("2"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(7),
+                amount: BigNumber.from(7),
+                owner: wallet.address,
+                price: utils.parseEther("3"),
+            },
+        ]);
     });
 
     test("Failed to trade because of insufficient balance", () => {
@@ -147,29 +212,52 @@ describe("BestNftExchange", () => {
     });
 
     test("Successful trade", async () => {
-        const balance = utils.parseEther("7");
+        const balance = utils.parseEther("3");
         await token.mint(trader1.address, balance);
         await token.connect(trader1).approve(exchange.address, balance);
 
-        await expect(exchange.connect(trader1).buy(2)).resolves.not.toThrow();
+        await expect(exchange.connect(trader1).buy(5)).resolves.not.toThrow();
 
-        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(2));
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(5));
         await expect(getOrders()).resolves.toEqual([
             {
                 nft: nft.address,
                 id: BigNumber.from(1),
+                amount: BigNumber.from(1),
                 owner: wallet.address,
                 price: BigNumber.from(0),
             },
             {
                 nft: nft.address,
                 id: BigNumber.from(4),
+                amount: BigNumber.from(4),
                 owner: wallet.address,
                 price: utils.parseEther("9"),
             },
+            {
+                nft: nft.address,
+                id: BigNumber.from(3),
+                amount: BigNumber.from(3),
+                owner: wallet.address,
+                price: utils.parseEther("7"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(5),
+                amount: BigNumber.from(5),
+                owner: wallet.address,
+                price: utils.parseEther("1"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(6),
+                amount: BigNumber.from(6),
+                owner: wallet.address,
+                price: utils.parseEther("2"),
+            },
         ]);
 
-        await expect(nft.ownerOf(3)).resolves.toBe(trader1.address);
-        await expect(token.balanceOf(wallet.address)).resolves.toEqual(utils.parseEther("130"));
+        await expect(nft.balanceOf(trader1.address, 7)).resolves.toEqual(BigNumber.from(7));
+        await expect(token.balanceOf(wallet.address)).resolves.toEqual(utils.parseEther("126"));
     });
 });
