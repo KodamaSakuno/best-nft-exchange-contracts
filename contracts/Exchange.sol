@@ -89,7 +89,7 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         emit OrderRemoved(id);
     }
 
-    function set_price(uint256 id, uint256 price) external {
+    function setPrice(uint256 id, uint256 price) external {
         require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         require(_orders[id].owner == msg.sender, "BestNftExchange: not order owner");
 

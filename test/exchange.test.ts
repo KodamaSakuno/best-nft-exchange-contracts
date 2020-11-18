@@ -66,7 +66,6 @@ describe("BestNftExchange", () => {
         await nft.mint(wallet.address, 3, 3, "0x");
         await nft.mint(wallet.address, 4, 4, "0x");
 
-
         await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 1, 1, "0x");
         await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 2, 2, "0x");
         await nft.connect(wallet).safeTransferFrom(wallet.address, exchange.address, 3, 3, "0x");
@@ -109,7 +108,7 @@ describe("BestNftExchange", () => {
     });
 
     test("Set price", async () => {
-        await exchange.connect(wallet).set_price(2, utils.parseEther("7"));
+        await exchange.connect(wallet).setPrice(2, utils.parseEther("7"));
 
         await expect(getOrder(2)).resolves.toEqual({
             nft: nft.address,
