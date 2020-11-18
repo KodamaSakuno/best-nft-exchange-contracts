@@ -25,6 +25,11 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     Order[] private _orders;
     uint256 private _totalOrder;
 
+    event OrderAdded(uint256 orderId, address indexed nft, uint256 id, uint256 amount, address indexed owner, uint256 price);
+    event OrderRemoved(uint256 orderId);
+    event PriceUpdated(uint256 orderId, uint256 price);
+    event OrderConfirmed(uint256 orderId);
+
     constructor(address _token) public {
         token = IERC20(_token);
     }
@@ -52,6 +57,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         token.safeTransferFrom(msg.sender, order.owner, order.price);
         order.nft.safeTransferFrom(address(this), msg.sender, order.id, order.amount, "");
 
+        emit OrderConfirmed(id);
+
         removeOrder(id);
     }
 
@@ -78,6 +85,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
             _orders[id] = Order(lastOrder.nft, lastOrder.id, lastOrder.amount, lastOrder.owner, lastOrder.price);
 
         _totalOrder = _orders.length;
+
+        emit OrderRemoved(id);
     }
 
     function set_price(uint256 id, uint256 price) external {
@@ -85,6 +94,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         require(_orders[id].owner == msg.sender, "BestNftExchange: not order owner");
 
         _orders[id].price = price;
+
+        emit PriceUpdated(id, price);
     }
 
     function onERC1155Received(address, address from, uint256 id, uint256 value, bytes calldata data) external override returns (bytes4) {
@@ -95,9 +106,12 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
             price = abi.decode(data, (uint256));
 
         Order memory order = Order(IERC1155(msg.sender), id, value, from, price);
+        uint256 orderId = _totalOrder;
 
         _orders.push(order);
         _totalOrder = _orders.length;
+
+        emit OrderAdded(orderId, msg.sender, id, value, from, price);
 
         return IERC1155Receiver.onERC1155Received.selector;
     }
@@ -105,8 +119,11 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         uint256[] memory prices = abi.decode(data, (uint256[]));
         require(prices.length == ids.length, "BestNftExchange: prices count mismatch");
 
-        for (uint256 i = 0; i < ids.length; i++)
+        uint256 previousTotalOrder = _totalOrder;
+        for (uint256 i = 0; i < ids.length; i++) {
             _orders.push(Order(IERC1155(msg.sender), ids[i], values[i], from, prices[i]));
+            emit OrderAdded(previousTotalOrder + i, msg.sender, ids[i], values[i], from, prices[i]);
+        }
 
         _totalOrder = _orders.length;
 
