@@ -4,7 +4,8 @@
   "license": "MIT",
   "scripts": {
     "build": "hardhat compile",
-    "test": "jest"
+    "flatten": "hardhat flatten",
+    "test": "hardhat test:jest"
   },
   "devDependencies": {
     "@ethereum-waffle/jest": "^3.2.0",
