@@ -302,7 +302,7 @@ describe("BestNftExchange", () => {
         await expect(token.balanceOf(wallet.address)).resolves.toEqual(utils.parseEther("126"));
     });
 
-    test("Failed to buy my order", () => {
+    test("Failed to buy owner's order", () => {
         expect(exchange.connect(wallet).buy(0)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
     });
 });
