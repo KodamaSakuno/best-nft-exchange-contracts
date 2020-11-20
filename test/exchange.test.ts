@@ -259,4 +259,8 @@ describe("BestNftExchange", () => {
         await expect(nft.balanceOf(trader1.address, 7)).resolves.toEqual(BigNumber.from(7));
         await expect(token.balanceOf(wallet.address)).resolves.toEqual(utils.parseEther("126"));
     });
+
+    test("Failed to buy my order", () => {
+        expect(exchange.connect(wallet).buy(0)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
+    });
 });

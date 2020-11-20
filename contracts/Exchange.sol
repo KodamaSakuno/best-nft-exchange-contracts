@@ -51,6 +51,7 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     function buy(uint256 id) external {
         require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
+        require(order.owner != msg.sender, "BestNftExchange: you're the owner of this order");
         uint256 buyerBalance = token.balanceOf(msg.sender);
         require(buyerBalance >= order.price, "BestNftExchange: insufficient balance");
 
