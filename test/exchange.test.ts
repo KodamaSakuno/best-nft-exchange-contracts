@@ -37,10 +37,10 @@ describe("BestNftExchange", () => {
         nft = await new ERC1155Mock__factory(owner).deploy("http://best/{id}.json");
     });
 
-    test("Initialized successfully", () => {
-        expect(exchange.owner()).resolves.toBe(owner.address);
-        expect(exchange.isAdmin(owner.address)).resolves.toBe(true);
-        expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(0));
+    test("Initialized successfully", async () => {
+        await expect(exchange.owner()).resolves.toBe(owner.address);
+        await expect(exchange.isAdmin(owner.address)).resolves.toBe(true);
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(0));
     });
     test("Administrator add & remove", async () => {
         await expect(exchange.isAdmin(wallet.address)).resolves.toBe(false);
@@ -273,7 +273,7 @@ describe("BestNftExchange", () => {
         await expect(token.balanceOf(wallet.address)).resolves.toEqual(utils.parseEther("126"));
     });
 
-    test("Failed to buy owner's order", () => {
-        expect(exchange.connect(wallet).buy(1)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
+    test("Failed to buy owner's order", async () => {
+        await expect(exchange.connect(wallet).buy(3)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
     });
 });
