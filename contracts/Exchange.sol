@@ -15,6 +15,10 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
 
     IERC20 public exchangeToken;
 
+    mapping (uint256 => uint256) private _next;
+    mapping (uint256 => uint256) private _previous;
+    uint256 private _tail;
+
     struct Order {
         IERC1155 nft;
         uint256 id;
@@ -22,8 +26,10 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         address owner;
         uint256 price;
     }
-    Order[] private _orders;
+    mapping (uint256 => Order) private _orders;
+
     uint256 private _totalOrder;
+    uint256 private _nextOrderId;
 
     event OrderAdded(uint256 orderId, address indexed nft, uint256 id, uint256 amount, address indexed owner, uint256 price);
     event OrderRemoved(uint256 orderId);
@@ -32,6 +38,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
 
     constructor(address _exchangeToken) public {
         exchangeToken = IERC20(_exchangeToken);
+
+        _nextOrderId = 1;
     }
 
     function totalOrder() external view returns (uint256) {
@@ -40,17 +48,21 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     function getOrders() external view returns (Order[] memory result) {
         result = new Order[](_totalOrder);
 
-        for (uint256 i = 0; i < _totalOrder; i++)
-            result[i] = _orders[i];
+        uint256 index = 0;
+        uint256 orderId = _next[0];
+
+        while (orderId > 0) {
+            result[index++] = _orders[orderId];
+            orderId = _next[orderId];
+        }
     }
     function getOrder(uint256 id) external view returns (Order memory) {
-        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         return _orders[id];
     }
 
     function buy(uint256 id) external {
-        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
+        require(address(order.nft) != address(0), "BestNftExchange: bad id");
         require(order.owner != msg.sender, "BestNftExchange: you're the owner of this order");
         uint256 buyerBalance = exchangeToken.balanceOf(msg.sender);
         require(buyerBalance >= order.price, "BestNftExchange: insufficient balance");
@@ -64,8 +76,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     }
 
     function revoke(uint256 id) external {
-        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
+        require(address(order.nft) != address(0), "BestNftExchange: bad id");
         require(order.owner == msg.sender, "BestNftExchange: not order owner");
 
         order.nft.safeTransferFrom(address(this), msg.sender, order.id, order.amount, "");
@@ -73,28 +85,12 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         removeOrder(id);
     }
 
-    function removeOrder(uint256 id) internal {
-        if (_totalOrder == 1) {
-            _orders.pop();
-            return;
-        }
-
-        Order memory lastOrder = _orders[_totalOrder - 1];
-        _orders.pop();
-
-        if (id < _totalOrder - 1)
-            _orders[id] = Order(lastOrder.nft, lastOrder.id, lastOrder.amount, lastOrder.owner, lastOrder.price);
-
-        _totalOrder = _orders.length;
-
-        emit OrderRemoved(id);
-    }
-
     function setPrice(uint256 id, uint256 price) external {
-        require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
-        require(_orders[id].owner == msg.sender, "BestNftExchange: not order owner");
+        Order storage order = _orders[id];
+        require(address(order.nft) != address(0), "BestNftExchange: bad id");
+        require(order.owner == msg.sender, "BestNftExchange: not order owner");
 
-        _orders[id].price = price;
+        order.price = price;
 
         emit PriceUpdated(id, price);
     }
@@ -106,13 +102,7 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         else
             price = abi.decode(data, (uint256));
 
-        Order memory order = Order(IERC1155(msg.sender), id, value, from, price);
-        uint256 orderId = _totalOrder;
-
-        _orders.push(order);
-        _totalOrder = _orders.length;
-
-        emit OrderAdded(orderId, msg.sender, id, value, from, price);
+        addOrder(IERC1155(msg.sender), id, value, from, price);
 
         return IERC1155Receiver.onERC1155Received.selector;
     }
@@ -120,15 +110,43 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         uint256[] memory prices = abi.decode(data, (uint256[]));
         require(prices.length == ids.length, "BestNftExchange: prices count mismatch");
 
-        uint256 previousTotalOrder = _totalOrder;
-        for (uint256 i = 0; i < ids.length; i++) {
-            _orders.push(Order(IERC1155(msg.sender), ids[i], values[i], from, prices[i]));
-            emit OrderAdded(previousTotalOrder + i, msg.sender, ids[i], values[i], from, prices[i]);
-        }
-
-        _totalOrder = _orders.length;
+        for (uint256 i = 0; i < ids.length; i++)
+            addOrder(IERC1155(msg.sender), ids[i], values[i], from, prices[i]);
 
         return IERC1155Receiver.onERC1155BatchReceived.selector;
+    }
+
+    function addOrder(IERC1155 nft, uint256 id, uint256 amount, address owner, uint256 price) private {
+        uint256 orderId = _nextOrderId;
+
+        _orders[orderId] = Order(nft, id, amount, owner, price);
+        _next[_tail] = orderId;
+        _previous[orderId] = _tail;
+        _tail = orderId;
+
+        _nextOrderId++;
+        _totalOrder++;
+
+        emit OrderAdded(orderId, msg.sender, id, amount, owner, price);
+    }
+    function removeOrder(uint256 id) private {
+        delete _orders[id];
+
+        uint256 next = _next[id];
+        uint256 previous = _previous[id];
+
+        if (_tail == id)
+            _tail = previous;
+
+        _next[previous] = next;
+        _previous[next] = previous;
+
+        delete _next[id];
+        delete _previous[id];
+
+        _totalOrder--;
+
+        emit OrderRemoved(id);
     }
 
     function withdrawAll() external onlyAdmins {

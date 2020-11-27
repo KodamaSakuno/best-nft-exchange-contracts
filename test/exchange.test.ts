@@ -115,9 +115,9 @@ describe("BestNftExchange", () => {
     });
 
     test("Set price", async () => {
-        await exchange.connect(wallet).setPrice(2, utils.parseEther("7"));
+        await exchange.connect(wallet).setPrice(3, utils.parseEther("7"));
 
-        await expect(getOrder(2)).resolves.toEqual({
+        await expect(getOrder(3)).resolves.toEqual({
             nft: nft.address,
             id: BigNumber.from(3),
             amount: BigNumber.from(3),
@@ -127,24 +127,11 @@ describe("BestNftExchange", () => {
     });
 
     test("Revoke order", async () => {
+        await exchange.connect(wallet).revoke(2);
         await exchange.connect(wallet).revoke(1);
 
-        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(4));
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(3));
         await expect(getOrders()).resolves.toEqual([
-            {
-                nft: nft.address,
-                id: BigNumber.from(1),
-                amount: BigNumber.from(1),
-                owner: wallet.address,
-                price: BigNumber.from(0),
-            },
-            {
-                nft: nft.address,
-                id: BigNumber.from(4),
-                amount: BigNumber.from(3),
-                owner: wallet.address,
-                price: utils.parseEther("9"),
-            },
             {
                 nft: nft.address,
                 id: BigNumber.from(3),
@@ -159,9 +146,25 @@ describe("BestNftExchange", () => {
                 owner: wallet.address,
                 price: utils.parseEther("8"),
             },
+            {
+                nft: nft.address,
+                id: BigNumber.from(4),
+                amount: BigNumber.from(3),
+                owner: wallet.address,
+                price: utils.parseEther("9"),
+            },
         ]);
 
         await expect(nft.balanceOf(wallet.address, 2)).resolves.toEqual(BigNumber.from(2));
+    });
+
+    test("Failed to operate with absent id", async () => {
+        await expect(exchange.connect(wallet).setPrice(2, utils.parseEther("222"))).rejects.toThrowError("BestNftExchange: bad id");
+        await expect(exchange.connect(wallet).buy(2)).rejects.toThrowError("BestNftExchange: bad id");
+        await expect(exchange.connect(wallet).revoke(2)).rejects.toThrowError("BestNftExchange: bad id");
+        await expect(exchange.connect(trader1).setPrice(2, utils.parseEther("222"))).rejects.toThrowError("BestNftExchange: bad id");
+        await expect(exchange.connect(trader1).buy(2)).rejects.toThrowError("BestNftExchange: bad id");
+        await expect(exchange.connect(trader1).revoke(2)).rejects.toThrowError("BestNftExchange: bad id");
     });
 
     test("Add multiple orders by direct transfer", async () => {
@@ -172,23 +175,9 @@ describe("BestNftExchange", () => {
         const prices = utils.defaultAbiCoder.encode(["uint256[]"], [[utils.parseEther("1"), utils.parseEther("2"), utils.parseEther("3"), utils.parseEther("4")]]);
         await nft.connect(wallet).safeBatchTransferFrom(wallet.address, exchange.address, [5, 6, 7, 7], [5, 6, 3, 4], prices);
 
-        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(8));
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(7));
 
         await expect(getOrders()).resolves.toEqual([
-            {
-                nft: nft.address,
-                id: BigNumber.from(1),
-                amount: BigNumber.from(1),
-                owner: wallet.address,
-                price: BigNumber.from(0),
-            },
-            {
-                nft: nft.address,
-                id: BigNumber.from(4),
-                amount: BigNumber.from(3),
-                owner: wallet.address,
-                price: utils.parseEther("9"),
-            },
             {
                 nft: nft.address,
                 id: BigNumber.from(3),
@@ -202,6 +191,13 @@ describe("BestNftExchange", () => {
                 amount: BigNumber.from(2),
                 owner: wallet.address,
                 price: utils.parseEther("8"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(4),
+                amount: BigNumber.from(3),
+                owner: wallet.address,
+                price: utils.parseEther("9"),
             },
             {
                 nft: nft.address,
@@ -235,7 +231,7 @@ describe("BestNftExchange", () => {
     });
 
     test("Failed to trade because of insufficient balance", () => {
-        expect(exchange.connect(trader2).buy(2)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: insufficient balance");
+        expect(exchange.connect(trader2).buy(3)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: insufficient balance");
     });
 
     test("Successful trade", async () => {
@@ -243,24 +239,10 @@ describe("BestNftExchange", () => {
         await token.mint(trader1.address, balance);
         await token.connect(trader1).approve(exchange.address, balance);
 
-        await expect(exchange.connect(trader1).buy(6)).resolves.not.toThrow();
+        await expect(exchange.connect(trader1).buy(8)).resolves.not.toThrow();
 
-        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(7));
+        await expect(exchange.totalOrder()).resolves.toEqual(BigNumber.from(6));
         await expect(getOrders()).resolves.toEqual([
-            {
-                nft: nft.address,
-                id: BigNumber.from(1),
-                amount: BigNumber.from(1),
-                owner: wallet.address,
-                price: BigNumber.from(0),
-            },
-            {
-                nft: nft.address,
-                id: BigNumber.from(4),
-                amount: BigNumber.from(3),
-                owner: wallet.address,
-                price: utils.parseEther("9"),
-            },
             {
                 nft: nft.address,
                 id: BigNumber.from(3),
@@ -274,6 +256,13 @@ describe("BestNftExchange", () => {
                 amount: BigNumber.from(2),
                 owner: wallet.address,
                 price: utils.parseEther("8"),
+            },
+            {
+                nft: nft.address,
+                id: BigNumber.from(4),
+                amount: BigNumber.from(3),
+                owner: wallet.address,
+                price: utils.parseEther("9"),
             },
             {
                 nft: nft.address,
@@ -303,6 +292,6 @@ describe("BestNftExchange", () => {
     });
 
     test("Failed to buy owner's order", () => {
-        expect(exchange.connect(wallet).buy(0)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
+        expect(exchange.connect(wallet).buy(1)).rejects.toThrowError("VM Exception while processing transaction: revert BestNftExchange: you're the owner of this order");
     });
 });
