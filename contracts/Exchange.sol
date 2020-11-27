@@ -13,7 +13,7 @@ import "./Administrable.sol";
 contract BestNftExchange is Administrable, ERC1155Receiver {
     using SafeERC20 for IERC20;
 
-    IERC20 public token;
+    IERC20 public exchangeToken;
 
     struct Order {
         IERC1155 nft;
@@ -30,8 +30,8 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     event PriceUpdated(uint256 orderId, uint256 price);
     event OrderConfirmed(uint256 orderId);
 
-    constructor(address _token) public {
-        token = IERC20(_token);
+    constructor(address _exchangeToken) public {
+        exchangeToken = IERC20(_exchangeToken);
     }
 
     function totalOrder() external view returns (uint256) {
@@ -52,10 +52,10 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
         require(id >= 0 && id < _totalOrder, "BestNftExchange: id out of range");
         Order memory order = _orders[id];
         require(order.owner != msg.sender, "BestNftExchange: you're the owner of this order");
-        uint256 buyerBalance = token.balanceOf(msg.sender);
+        uint256 buyerBalance = exchangeToken.balanceOf(msg.sender);
         require(buyerBalance >= order.price, "BestNftExchange: insufficient balance");
 
-        token.safeTransferFrom(msg.sender, order.owner, order.price);
+        exchangeToken.safeTransferFrom(msg.sender, order.owner, order.price);
         order.nft.safeTransferFrom(address(this), msg.sender, order.id, order.amount, "");
 
         emit OrderConfirmed(id);
@@ -132,9 +132,9 @@ contract BestNftExchange is Administrable, ERC1155Receiver {
     }
 
     function withdrawAll() external onlyAdmins {
-        withdrawAmount(token.balanceOf(address(this)));
+        withdrawAmount(exchangeToken.balanceOf(address(this)));
     }
     function withdrawAmount(uint256 _amount) public onlyAdmins {
-        token.transfer(msg.sender, _amount);
+        exchangeToken.transfer(msg.sender, _amount);
     }
 }
